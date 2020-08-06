@@ -3,6 +3,7 @@
 const express = require("express");
 const bodyParser = require("body-parser");
 const ejs = require("ejs");
+const mongoose = require("mongoose");
 const _ = require("lodash");
 const truncateString = require( __dirname + "/truncateString.js");
 
@@ -17,14 +18,27 @@ app.set('view engine', 'ejs');
 app.use(bodyParser.urlencoded({extended: true}));
 app.use(express.static("public"));
 
-let posts = [];
+mongoose.connect("mongodb://localhost:27017/blogDB", {useNewUrlParser: true, useUnifiedTopology: true});
+
+
+// let posts = [];
+let postsSchema = new mongoose.Schema ({
+    title: String,
+    content: String
+});
+
+const Post = mongoose.model("Post", postsSchema);
 
 app.get("/", (req, res) => {
 
-    res.render("home", {
-        startingContent: homeStartingContent,
-        posts: posts,
-        // truncateString: truncateString
+    Post.find({}, (err, foundPosts) => {
+        if(!err) {
+            res.render("home", {
+                startingContent: homeStartingContent,
+                posts: foundPosts,
+                // truncateString: truncateString
+            });
+        }
     });
 });
 
@@ -42,29 +56,26 @@ app.get("/compose", (req, res) => {
 
 app.post("/compose", (req, res) => {
 
-    const post = {
+    const post = new Post ({
         title: req.body.postTitle,
         content: req.body.postContent
-    };
+    });
 
-    posts.push(post);
+    // posts.push(post);
+    post.save();
     res.redirect("/");
 });
 
 
-app.get("/posts/:postName", (req, res) => {
-    const requestedTitle = _.lowerCase(req.params.postName);
+app.get("/posts/:postId", (req, res) => {
+    // const requestedTitle = _.lowerCase(req.params.postName);
+    const requestedPostId = req.params.postId;
 
-    posts.forEach( (post) => {
-        const storedTitle = _.lowerCase(post.title);
-
-        if( requestedTitle === storedTitle ) {
-            res.render("post", {
-                title: post.title,
-                content: post.content
-            });
-            return;
-        }
+    Post.findOne({_id: requestedPostId}, (err, post) => {
+        res.render("post", {
+            title: post.title,
+            content: post.content
+        });
     });
 });
 
